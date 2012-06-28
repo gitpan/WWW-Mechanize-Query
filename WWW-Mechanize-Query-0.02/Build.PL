@@ -30,13 +30,14 @@ my %module_build_args = (
                           'recommends'           => {},
                           'recursive_test_files' => 1,
                           'requires'             => {
-                                         'Cache::FileCache' => '0',
-                                         'Carp'             => '0',
-                                         'Data::Dump'       => '0',
-                                         'Moose'            => '0',
-                                         'Storable'         => '2.21',
-                                         'Mojo::Dom'        => '0',
-                                         'WWW::Mechanize'   => '0'
+                                         'Cache::FileCache'       => '0',
+                                         'Carp'                   => '0',
+                                         'Data::Dump'             => '0',
+                                         'Moose'                  => '0',
+                                         'Storable'               => '2.21',
+                                         'Mojo::Dom'              => '0',
+                                         'WWW::Mechanize'         => '0',
+                                         'WWW::Mechanize::Cached' => '0',
                                         },
                           'script_files' => []
                         );

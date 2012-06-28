@@ -5,26 +5,26 @@ package WWW::Mechanize::Query;
 
 =head1 NAME
 
-WWW::Mechanize::Query - CSS3 selectors support for WWW::Mechanize.
+WWW::Mechanize::Query - CSS3 selectors (or jQuery like CSS selectors) for WWW::Mechanize.
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
 	use WWW::Mechanize::Query;
 
-	my $mech = WWW::Mechanize::Query->new( ignore_cache => 0 );
+	my $mech = WWW::Mechanize::Query->new( -ignore_cache => 0, -debug => 0 );
 	$mech->get( 'http://www.amazon.com/' );
 	$mech->input( 'input[type="text"][name="field-keywords"]', 'Perl' );
 	$mech->submit();
 
-	print $mech->find('h2.resultCount')->span->text; #prints "Showing 1 - 16 of 7,104 Results"
+	print $mech->at('h2.resultCount')->span->text; #prints "Showing 1 - 16 of 7,104 Results"
 
 =head1 DESCRIPTION
 
@@ -34,11 +34,10 @@ For a full list of supported CSS selectors please see L<Mojo::DOM::CSS>.
 
 =cut
 
-use parent qw(WWW::Mechanize);
-use Cache::FileCache;
-use Storable qw( freeze thaw );
+use parent qw(WWW::Mechanize::Cached);
 use Data::Dumper;
 use Mojo::DOM;
+use Regexp::Common qw /URI/;
 
 =head1 CONSTRUCTOR
 
@@ -60,10 +59,14 @@ sub new {
         $mech_args{agent} = 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:11.0) Gecko/20100101 Firefox/11.0';
     }
 
-    my $self = bless \%mech_args, $class;
+    my $self = $class->SUPER::new( %mech_args );
 
-    $self->{'_internal'}->{'cache'} = Cache::FileCache->new( {default_expires_in => "1d", namespace => 'www-mechanize-query',} );
+    if ( $mech_args{'-ignore_cache'} ) {
+        $self->{ignore_cache} = 1;
+    }
+
     $self->{'_internal'}->{'mojo'} = Mojo::DOM->new();
+    $self->cookie_jar->{ignore_discard} = 1;
 
     return $self;
 }
@@ -71,23 +74,36 @@ sub new {
 sub _make_request {
     my $self     = shift;
     my $request  = shift;
-    my $req      = $request->as_string;
-    my $cache    = ( !$self->{ignore_cache} && ( $request->method eq 'GET' ) ) ? $self->{'_internal'}->{'cache'} : undef;
-    my $response = '';
+    my $response = undef;
+    my $cache    = !$self->{ignore_cache};
+    my $log      = '';
 
-    if ( $cache ) {
-        my $cached = $cache->get( $req );
-
-        if ( $cached ) {
-            $response = thaw $cached;
-        }
+    unless ( $self->{no_log} ) {
+        my $str = "" . $request->as_string;
+        my $uri = $str =~ m[(http.*)] ? $1 : $str;
+        $log .= "Mech Debug: " . $uri;
     }
 
-    if ( !$response ) {
-        $response = $self->SUPER::_make_request( $request, @_ );
+    if ( !$cache ) {
+        my $req = $request;
 
-        if ( $response->is_success && $cache ) {
-            $cache->set( $req, freeze( $response ) );
+        if ( !$self->ref_in_cache_key ) {
+            my $clone = $request->clone;
+            $clone->header( Referer => undef );
+            $req = $clone->as_string;
+        }
+
+        $self->cache->remove( $req );
+    }
+
+    $response = $self->SUPER::_make_request( $request, @_ );
+
+    unless ( $self->{no_log} ) {
+        $log .= " (cached: " . ( $self->is_cached() ? 1 : 0 ) . ", status: " . $response->code . ")\n";
+        open( SAV, ">>c:/mechanize.log" ) and print( SAV $log ) and close( SAV );
+
+        if ( $self->{'-debug'} ) {
+            print $log;
         }
     }
 
@@ -121,13 +137,30 @@ sub dom {
     return $self->{'_internal'}->{'_last_dom'};
 }
 
-=head2 find()
+=head2 at()
 
 Parses the current content and returns a L<Mojo::DOM> object using CSS3 selectors.
 
 	my $mech = WWW::Mechanize::Query->new();
 	$mech->get( 'http://www.amazon.com/' );
-	print $mech->find( 'div > h2' )->text;
+	print $mech->at( 'div > h2' )->text;
+
+=cut
+
+sub at {
+    my $self = shift;
+    my $expr = shift;
+
+    return $self->dom->at( $expr );
+}
+
+=head2 find()
+
+Parses the current content and returns a L<Mojo::DOM> collection using CSS3 selectors.
+
+	my $mech = WWW::Mechanize::Query->new();
+	$mech->get( 'http://www.amazon.com/' );
+	print $mech->find( 'div > h2' )->each ( sub { print shift->all_text; } );
 
 =cut
 
@@ -135,7 +168,7 @@ sub find {
     my $self = shift;
     my $expr = shift;
 
-    return $self->dom->at( $expr );
+    return $self->dom->find( $expr );
 }
 
 =head2 input()
@@ -160,12 +193,13 @@ sub input {
     my $ele    = shift;
     my $value  = shift;
     my $getter = !defined( $value );
+    my $o      = $ele;
 
     if ( ref( $ele ) ne 'Mojo::DOM' ) {
-        $ele = $self->find( $ele );
+        $ele = $self->at( $ele );
     }
 
-    die "No '$ele' exists" unless $ele;
+    die "No '$o' exists" unless $ele;
     die "Not supported" unless ( $ele->type =~ /input|select|textarea/i );
 
     my $dom = $self->dom;
@@ -188,7 +222,7 @@ sub input {
         $collection->each(
             sub {
                 my $e = shift;
-                if ( lc $e->attrs( 'value' ) eq lc $value ) {
+                if ( ( $value eq '_on' ) || ( lc $e->attrs( 'value' ) eq lc $value ) ) {
                     $e->attrs( 'checked', 'checked' );
                 } else {
                     delete( $e->attrs()->{'checked'} );
@@ -227,6 +261,80 @@ sub input {
     $self->update_html( $dom->to_xml );
 } ## end sub input
 
+=head2 click_link()
+
+Posts to a URL as if a form is being submitted
+
+	my $mech = WWW::Mechanize::Query->new();
+	$mech->post('http://www.google.com/search?q=test');  #POSTs to http://www.google.com/search with "q"
+	
+=cut
+
+sub post_url () {
+    require CGI;
+
+    my $self = shift;
+    my $url  = shift;
+
+    my $qstr = '';
+
+    if ( $url =~ /(.*)\?(.*)/ ) {
+        $url  = $1;
+        $qstr = $2;
+    }
+
+    my $q    = new CGI( $qstr );
+    my %FORM = $q->Vars();
+    my $html = qq(<form name="mainform" action="$url" method="POST">);
+
+    foreach my $name ( keys %FORM ) {
+        $html .= qq(<input type="hidden" name="$name" value="$FORM{$name}" />);
+    }
+
+    $html .= qq(</form>);
+
+    $self->update_html( $html );
+    $self->current_form( 1 );
+    $self->submit();
+} ## end sub post_url ()
+
+=head2 click_link()
+
+Checks if a L<HTML::Link> exists and if so follows it (otherwise it returns 0)
+
+	my $mech = WWW::Mechanize::Query->new();
+	while (1) {
+		print "next page.\n";
+		last unless $mech->click_link(url_regex=>qr[/next/]);
+	} 
+=cut
+
+sub click_link {
+    my $self = shift;
+    return $self->find_link( @_ ) ? $self->follow_link( @_ ) : 0;
+}
+
+=head2 simple_links()
+
+Parses L<HTML::Link> and returns simple links
+
+	my $mech = WWW::Mechanize::Query->new();
+	$mech->get( 'http://www.amazon.com/' );
+	my @links = $mech->find_all_links();
+	
+	print $mech->simple_links(@links);
+=cut
+
+sub simple_links {
+    my $self = shift;
+
+    for my $l ( @_ ) {
+        $l = "" . ( ref( $l ) eq 'WWW::Mechanize::Image' ? $l->url() : ref( $l ) eq 'WWW::Mechanize::Link' ? $l->url_abs() : '' );
+    }
+
+    return @_;
+}
+
 =head1 SEE ALSO
 
 L<WWW::Mechanize>.
@@ -253,6 +361,5 @@ This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
 
 =cut
-
 
 1;

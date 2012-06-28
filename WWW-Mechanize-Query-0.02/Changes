@@ -1,5 +1,9 @@
 Revision history for WWW-Mechanize-Query
 
+0.02    28/June/2012
+		Minor bug fixes
+		Dependency on WWW::Mechanize::Cached
+
 0.01    Date/time
         First version, released on an unsuspecting world.
 

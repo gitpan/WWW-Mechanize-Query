@@ -28,15 +28,16 @@ my %WriteMakefileArgs = (
                           'LICENSE'   => 'perl',
                           'NAME'      => 'WWW::Mechanize::Query',
                           'PREREQ_PM' => {
-                                          'Cache::FileCache' => '0',
-                                          'Carp'             => '0',
-                                          'Data::Dump'       => '0',
-                                          'Moose'            => '0',
-                                          'Storable'         => '2.21',
-                                          'Mojo::Dom'        => '0',
-                                          'WWW::Mechanize'   => '0'
+                                          'Cache::FileCache'       => '0',
+                                          'Carp'                   => '0',
+                                          'Data::Dump'             => '0',
+                                          'Moose'                  => '0',
+                                          'Storable'               => '2.21',
+                                          'Mojo::Dom'              => '0',
+                                          'WWW::Mechanize'         => '0',
+                                          'WWW::Mechanize::Cached' => '0',
                                          },
-                          'VERSION' => '0.01',
+                          'VERSION' => '0.02',
                           'test'    => {'TESTS' => 't/*.t'}
                         );
 
