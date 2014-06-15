@@ -33,11 +33,11 @@ my %WriteMakefileArgs = (
                                           'Data::Dump'             => '0',
                                           'Moose'                  => '0',
                                           'Storable'               => '2.21',
-                                          'Mojo::Dom'              => '0',
+                                          'Mojo::DOM'              => '0',
                                           'WWW::Mechanize'         => '0',
                                           'WWW::Mechanize::Cached' => '0',
                                          },
-                          'VERSION' => '0.02',
+                          'VERSION' => '0.03',
                           'test'    => {'TESTS' => 't/*.t'}
                         );
 

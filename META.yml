@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               WWW-Mechanize-Query
-version:            0.02
+version:            0.03
 abstract:           CSS3 selectors support for WWW::Mechanize
 author:
     - San Kumar (original author)
@@ -24,7 +24,7 @@ requires:
     Cache::FileCache:     0
     Carp:                 0
     Data::Dump:           0
-    Mojo::Dom:            0
+    Mojo::DOM:            0
     Moose:                0
     Storable:             2.21
     WWW::Mechanize:       0

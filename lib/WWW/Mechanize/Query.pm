@@ -9,11 +9,11 @@ WWW::Mechanize::Query - CSS3 selectors (or jQuery like CSS selectors) for WWW::M
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -64,7 +64,7 @@ sub new {
     if ( $mech_args{'-ignore_cache'} ) {
         $self->{ignore_cache} = 1;
     }
-
+	
     $self->{'_internal'}->{'mojo'} = Mojo::DOM->new();
     $self->cookie_jar->{ignore_discard} = 1;
 
@@ -78,7 +78,7 @@ sub _make_request {
     my $cache    = !$self->{ignore_cache};
     my $log      = '';
 
-    unless ( $self->{no_log} ) {
+    unless ( $self->{debug} ) {
         my $str = "" . $request->as_string;
         my $uri = $str =~ m[(http.*)] ? $1 : $str;
         $log .= "Mech Debug: " . $uri;
@@ -98,7 +98,7 @@ sub _make_request {
 
     $response = $self->SUPER::_make_request( $request, @_ );
 
-    unless ( $self->{no_log} ) {
+    unless ( $self->{debug} ) {
         $log .= " (cached: " . ( $self->is_cached() ? 1 : 0 ) . ", status: " . $response->code . ")\n";
         open( SAV, ">>c:/mechanize.log" ) and print( SAV $log ) and close( SAV );
 

@@ -35,7 +35,7 @@ my %module_build_args = (
                                          'Data::Dump'             => '0',
                                          'Moose'                  => '0',
                                          'Storable'               => '2.21',
-                                         'Mojo::Dom'              => '0',
+                                         'Mojo::DOM'              => '0',
                                          'WWW::Mechanize'         => '0',
                                          'WWW::Mechanize::Cached' => '0',
                                         },

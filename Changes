@@ -1,5 +1,9 @@
 Revision history for WWW-Mechanize-Query
 
+0.03    16/June/2014
+		Fixed type in Mojo::DOM
+		Removed some debugging code (left by mistake)
+
 0.02    28/June/2012
 		Minor bug fixes
 		Dependency on WWW::Mechanize::Cached
